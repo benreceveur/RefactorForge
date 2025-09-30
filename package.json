@@ -1,0 +1,71 @@
+{
+  "name": "refactorforge",
+  "version": "1.0.0",
+  "description": "RefactorForge - AI-powered code refactoring and contact management tool",
+  "private": true,
+  "author": "RefactorForge Team",
+  "license": "MIT",
+  "homepage": "https://github.com/yourusername/refactorforge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/refactorforge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/refactorforge/issues"
+  },
+  "keywords": [
+    "refactoring",
+    "code-analysis",
+    "github",
+    "ai",
+    "recommendations",
+    "performance",
+    "security",
+    "typescript",
+    "react",
+    "nodejs"
+  ],
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "./start-dev.sh",
+    "dev:manual": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run start",
+    "dev:backend": "cd backend && npm run dev",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:frontend": "cd frontend && npm run start",
+    "start:backend": "cd backend && npm run start",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:fix": "npm run lint:fix:backend && npm run lint:fix:frontend",
+    "lint:fix:backend": "cd backend && npm run lint:fix",
+    "lint:fix:frontend": "cd frontend && npm run lint:fix",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "typecheck:backend": "cd backend && npm run typecheck",
+    "typecheck:frontend": "cd frontend && npm run typecheck",
+    "quality": "npm run lint && npm run format:check && npm run typecheck",
+    "quality:fix": "npm run lint:fix && npm run format",
+    "prepare": "husky install",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "test:coverage": "npm run test:coverage:backend && npm run test:coverage:frontend",
+    "test:coverage:backend": "cd backend && npm run test:coverage",
+    "test:coverage:frontend": "cd frontend && npm run test:coverage"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

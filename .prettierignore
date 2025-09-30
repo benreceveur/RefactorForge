@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+.next/
+out/
+
+# Coverage
+coverage/
+*/coverage/
+.nyc_output/
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Version control
+.git/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Generated files
+*.min.js
+*.min.css
+*.map
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Documentation
+*.md
+
+# Config files
+*.json
+*.yml
+*.yaml
+.eslintrc*
+.prettierrc*

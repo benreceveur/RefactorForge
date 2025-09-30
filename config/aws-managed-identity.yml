@@ -1,0 +1,153 @@
+# AWS IAM Roles and Secrets Manager Configuration for RefactorForge
+
+# ECS Service Configuration
+ecs_service:
+  cluster_name: refactorforge-cluster
+  service_name: refactorforge-service
+  
+  # Task execution role (for ECS to pull images, etc.)
+  task_execution_role:
+    name: refactorforge-execution-role
+    policies:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+  
+  # Task role (for application to access secrets)
+  task_role:
+    name: refactorforge-task-role
+    policies:
+      - SecretsManagerReadAccess
+
+# Secrets Manager Configuration
+secrets_manager:
+  secrets:
+    - name: refactorforge/github-webhook-secret
+      description: GitHub webhook secret for RefactorForge
+    - name: refactorforge/github-token
+      description: GitHub personal access token
+    - name: refactorforge/jwt-secret
+      description: JWT signing secret
+    - name: refactorforge/session-secret
+      description: Express session secret
+    - name: refactorforge/database-encryption-key
+      description: Database encryption key
+    - name: refactorforge/admin-api-key
+      description: Admin API access key
+
+# CloudFormation Template
+cloudformation: |
+  AWSTemplateFormatVersion: '2010-09-09'
+  Description: 'RefactorForge ECS Service with IAM Roles for Secrets Manager'
+  
+  Resources:
+    # ECS Cluster
+    RefactorForgeCluster:
+      Type: AWS::ECS::Cluster
+      Properties:
+        ClusterName: refactorforge-cluster
+    
+    # Task Execution Role
+    TaskExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: refactorforge-execution-role
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+          - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+    
+    # Task Role (for application)
+    TaskRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: refactorforge-task-role
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: SecretsManagerReadAccess
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:GetSecretValue
+                    - secretsmanager:DescribeSecret
+                  Resource: 
+                    - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:refactorforge/*'
+    
+    # Task Definition
+    TaskDefinition:
+      Type: AWS::ECS::TaskDefinition
+      Properties:
+        Family: refactorforge-task
+        NetworkMode: awsvpc
+        RequiresCompatibilities:
+          - FARGATE
+        Cpu: 256
+        Memory: 512
+        ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+        TaskRoleArn: !GetAtt TaskRole.Arn
+        ContainerDefinitions:
+          - Name: refactorforge-backend
+            Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/refactorforge-backend:latest'
+            PortMappings:
+              - ContainerPort: 8001
+                Protocol: tcp
+            Environment:
+              - Name: NODE_ENV
+                Value: production
+              - Name: AWS_REGION
+                Value: !Ref AWS::Region
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-group: /ecs/refactorforge
+                awslogs-region: !Ref AWS::Region
+                awslogs-stream-prefix: ecs
+    
+    # Secrets
+    GitHubWebhookSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: refactorforge/github-webhook-secret
+        Description: GitHub webhook secret for RefactorForge
+        GenerateSecretString:
+          SecretStringTemplate: '{}'
+          GenerateStringKey: secret
+          PasswordLength: 32
+          ExcludeCharacters: '"@/\'
+    
+    GitHubTokenSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: refactorforge/github-token
+        Description: GitHub personal access token
+        SecretString: !Ref GitHubToken
+    
+    JWTSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: refactorforge/jwt-secret
+        Description: JWT signing secret
+        GenerateSecretString:
+          SecretStringTemplate: '{}'
+          GenerateStringKey: secret
+          PasswordLength: 64
+          ExcludeCharacters: '"@/\'
+  
+  Parameters:
+    GitHubToken:
+      Type: String
+      Description: GitHub Personal Access Token
+      NoEcho: true

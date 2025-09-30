@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Functionality Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        button { 
+            padding: 8px 16px; 
+            margin: 5px; 
+            cursor: pointer; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+        }
+        button:hover { background: #0056b3; }
+        .debug-info { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-left: 3px solid #007bff; 
+        }
+        .expandable-section { 
+            display: none; 
+            background: #f1f3f4; 
+            padding: 15px; 
+            margin-top: 10px; 
+        }
+        .expandable-section.expanded { display: block; }
+    </style>
+</head>
+<body>
+    <h1>Button Functionality Debug Test</h1>
+    
+    <div class="test-section">
+        <h2>Isolated Button Test</h2>
+        <p>This tests basic button functionality outside of React context.</p>
+        
+        <button id="test-button-1" onclick="toggleSection('section-1')">View Code</button>
+        <button id="test-button-2" onclick="toggleSection('section-2')">View Details</button>
+        
+        <div id="section-1" class="expandable-section">
+            <h3>Code Section</h3>
+            <p>This is the code comparison section that should toggle.</p>
+            <pre>console.log('Before code example');</pre>
+        </div>
+        
+        <div id="section-2" class="expandable-section">
+            <h3>Details Section</h3>
+            <p>This is the implementation details section that should toggle.</p>
+            <ul>
+                <li>Step 1: Implement feature</li>
+                <li>Step 2: Test functionality</li>
+                <li>Step 3: Deploy changes</li>
+            </ul>
+        </div>
+        
+        <div class="debug-info" id="debug-info">
+            <strong>Debug Info:</strong> No actions taken yet.
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>React-like State Management Test</h2>
+        <p>This simulates React state management patterns.</p>
+        
+        <button onclick="reactLikeToggle(0)">Card 0 - View Code</button>
+        <button onclick="reactLikeToggle(1)">Card 1 - View Details</button>
+        <button onclick="reactLikeToggle(2)">Card 2 - View Code</button>
+        
+        <div id="react-debug" class="debug-info">
+            <strong>Expanded Card:</strong> <span id="expanded-card">null</span>
+        </div>
+        
+        <div id="card-0" class="expandable-section">Card 0 content</div>
+        <div id="card-1" class="expandable-section">Card 1 content</div>
+        <div id="card-2" class="expandable-section">Card 2 content</div>
+    </div>
+
+    <script>
+        // Basic toggle functionality
+        function toggleSection(sectionId) {
+            console.log('🔘 Button clicked for section:', sectionId);
+            const section = document.getElementById(sectionId);
+            const isCurrentlyExpanded = section.classList.contains('expanded');
+            
+            // Close all sections first
+            document.querySelectorAll('.expandable-section').forEach(s => {
+                s.classList.remove('expanded');
+            });
+            
+            // Open the requested section if it wasn't already open
+            if (!isCurrentlyExpanded) {
+                section.classList.add('expanded');
+            }
+            
+            document.getElementById('debug-info').innerHTML = 
+                `<strong>Debug Info:</strong> Toggled ${sectionId}, isExpanded: ${!isCurrentlyExpanded}`;
+        }
+
+        // React-like state management
+        let expandedCard = null;
+
+        function reactLikeToggle(cardIndex) {
+            const uniqueKey = `improvement-${cardIndex}`;
+            const isExpanded = expandedCard === uniqueKey;
+            
+            console.log('🔘 React-like toggle', { 
+                uniqueKey, 
+                isExpanded, 
+                currentExpandedCard: expandedCard 
+            });
+            
+            // Close all cards first
+            document.querySelectorAll('.expandable-section').forEach(s => {
+                s.classList.remove('expanded');
+            });
+            
+            // Toggle logic similar to React component
+            if (isExpanded) {
+                expandedCard = null;
+            } else {
+                expandedCard = uniqueKey;
+                document.getElementById(`card-${cardIndex}`).classList.add('expanded');
+            }
+            
+            // Update debug display
+            document.getElementById('expanded-card').textContent = expandedCard;
+        }
+
+        // Test event listener issues (common cause of button problems)
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM loaded, testing event listeners...');
+            
+            // Test if event listeners are properly attached
+            const testButtons = document.querySelectorAll('button');
+            console.log(`Found ${testButtons.length} buttons`);
+            
+            testButtons.forEach((button, index) => {
+                button.addEventListener('click', function(e) {
+                    console.log(`Button ${index} click event fired`, e);
+                });
+            });
+        });
+        
+        // Test for Chrome extension interference
+        window.addEventListener('error', function(e) {
+            console.error('🚨 JavaScript Error:', e);
+        });
+        
+        // Test for runtime.lastError issues
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+                console.log('Chrome extension message received:', message);
+                // Don't return true unless we actually want async response
+                return false;
+            });
+        }
+    </script>
+</body>
+</html>

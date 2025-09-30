@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeImprovements Button Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f8f9fa; 
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-results {
+            background: #e8f5e8;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+        }
+        .error-results {
+            background: #f8e8e8;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #dc3545;
+            border-radius: 4px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .debug-log {
+            background: #f1f3f4;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CodeImprovements Button Debugging</h1>
+        
+        <div id="test-status" class="test-results">
+            <strong>Status:</strong> Initializing tests...
+        </div>
+        
+        <h2>Quick Access to React App</h2>
+        <p>The React app is running at: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></p>
+        <p>Navigate to the Code Improvements section and test the buttons there.</p>
+        
+        <h2>Manual Button Test</h2>
+        <button class="test-button" onclick="testBasicClick()">Test Basic Click</button>
+        <button class="test-button" onclick="testStateToggle()">Test State Toggle</button>
+        <button class="test-button" onclick="fetchReactAppPage()">Fetch React App Page</button>
+        <button class="test-button" onclick="checkConsoleErrors()">Check Console Errors</button>
+        
+        <h2>Debug Log</h2>
+        <div id="debug-log" class="debug-log"></div>
+        
+        <h2>Button Click Troubleshooting Guide</h2>
+        <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 10px 0;">
+            <h3>Common Causes of Non-Working Buttons:</h3>
+            <ul>
+                <li><strong>Unstable React Keys:</strong> ✅ FIXED - Removed timestamp from key generation</li>
+                <li><strong>Inconsistent onClick Logic:</strong> ✅ FIXED - Both buttons now use same toggle logic</li>
+                <li><strong>CSS Pointer Events:</strong> Check if buttons have pointer-events: none</li>
+                <li><strong>Event Propagation:</strong> Check if click events are being stopped</li>
+                <li><strong>Chrome Extension Interference:</strong> runtime.lastError warnings suggest this</li>
+                <li><strong>State Management Issues:</strong> ✅ FIXED - Added debug logging</li>
+            </ul>
+        </div>
+        
+        <h2>Testing Instructions</h2>
+        <div style="background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin: 10px 0;">
+            <ol>
+                <li>Open the React app at <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+                <li>Navigate to the Code Improvements section</li>
+                <li>Open browser developer console (F12)</li>
+                <li>Click on "View Code" or "View Details" buttons</li>
+                <li>Check console for debug logs starting with 🔘 or 🔍</li>
+                <li>Verify that sections expand/collapse as expected</li>
+            </ol>
+        </div>
+        
+        <h2>Expected Console Output</h2>
+        <pre style="background: #f8f9fa; padding: 10px; border-radius: 4px;">
+🔍 Card state debug: {
+  index: 0,
+  uniqueKey: "improvement-0-OptimizeAPIRespo",
+  expandedCard: null,
+  isExpanded: false,
+  title: "Optimize API Response Caching"
+}
+
+🔘 View Code button clicked {
+  uniqueKey: "improvement-0-OptimizeAPIRespo",
+  isExpanded: false,
+  currentExpandedCard: null
+}
+
+🔘 View Details button clicked {
+  uniqueKey: "improvement-0-OptimizeAPIRespo", 
+  isExpanded: true,
+  currentExpandedCard: "improvement-0-OptimizeAPIRespo"
+}
+        </pre>
+    </div>
+
+    <script>
+        let logContainer = document.getElementById('debug-log');
+        let statusContainer = document.getElementById('test-status');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `[${timestamp}] ${message}\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(message, isError = false) {
+            statusContainer.className = isError ? 'error-results' : 'test-results';
+            statusContainer.innerHTML = `<strong>Status:</strong> ${message}`;
+        }
+        
+        function testBasicClick() {
+            log('🔘 Basic click test executed successfully');
+            updateStatus('Basic click functionality working');
+        }
+        
+        let testState = null;
+        function testStateToggle() {
+            const wasExpanded = testState === 'expanded';
+            testState = wasExpanded ? null : 'expanded';
+            log(`🔄 State toggle test: ${testState} (was ${wasExpanded ? 'expanded' : 'collapsed'})`);
+            updateStatus(`State toggle working - current: ${testState}`);
+        }
+        
+        function fetchReactAppPage() {
+            log('🌐 Fetching React app page...');
+            fetch('http://localhost:3000')
+                .then(response => response.text())
+                .then(html => {
+                    if (html.includes('RefactorForge')) {
+                        log('✅ React app is running and accessible');
+                        updateStatus('React app is running on localhost:3000');
+                    } else {
+                        log('❌ React app response unexpected');
+                        updateStatus('React app response unexpected', true);
+                    }
+                })
+                .catch(error => {
+                    log(`❌ Failed to fetch React app: ${error.message}`);
+                    updateStatus(`React app not accessible: ${error.message}`, true);
+                });
+        }
+        
+        function checkConsoleErrors() {
+            log('🔍 Checking for common error patterns...');
+            
+            // Check for Chrome extension issues
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.lastError) {
+                log('⚠️  Chrome extension lastError detected');
+                updateStatus('Chrome extension interference detected', true);
+            } else {
+                log('✅ No Chrome extension lastError detected');
+            }
+            
+            // Check for global error handlers
+            const originalConsoleError = console.error;
+            let errorCount = 0;
+            
+            console.error = function(...args) {
+                errorCount++;
+                log(`🚨 Console Error #${errorCount}: ${args.join(' ')}`);
+                originalConsoleError.apply(console, args);
+            };
+            
+            setTimeout(() => {
+                console.error = originalConsoleError;
+                if (errorCount === 0) {
+                    log('✅ No console errors detected in last 3 seconds');
+                    updateStatus('No console errors detected');
+                } else {
+                    updateStatus(`${errorCount} console errors detected - check log`, true);
+                }
+            }, 3000);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Button test page loaded');
+            updateStatus('Test page ready - click buttons above to run tests');
+            
+            // Auto-fetch React app status
+            setTimeout(fetchReactAppPage, 500);
+        });
+        
+        // Monitor for runtime errors that could affect button functionality
+        window.addEventListener('error', function(e) {
+            log(`🚨 Runtime Error: ${e.message} at ${e.filename}:${e.lineno}`);
+        });
+        
+        // Monitor for Chrome extension messages that might interfere
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+                log(`📨 Chrome message: ${JSON.stringify(message)}`);
+                return false; // Don't return true to avoid async response warnings
+            });
+        }
+    </script>
+</body>
+</html>

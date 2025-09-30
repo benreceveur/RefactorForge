@@ -1,0 +1,20 @@
+{
+  "name": "refactorforge-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end tests for RefactorForge GitHub Integration",
+  "main": "github-integration.test.js",
+  "scripts": {
+    "test": "node github-integration.test.js",
+    "test:headless": "HEADLESS=true node github-integration.test.js",
+    "test:debug": "HEADLESS=false SLOW_MO=500 node github-integration.test.js",
+    "test:with-token": "GITHUB_TOKEN=$GITHUB_TOKEN node github-integration.test.js",
+    "install:playwright": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.40.0",
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {},
+  "author": "RefactorForge Team",
+  "license": "MIT"
+}

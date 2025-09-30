@@ -1,0 +1,89 @@
+{
+  "timestamp": "2025-08-25T17:32:05.481400",
+  "total_repositories": 9,
+  "successful_generations": 9,
+  "total_recommendations": 22,
+  "results": [
+    {
+      "repository_id": "b8995ba2-df3e-48b4-a457-76f87e78d484",
+      "repository_name": "Intellipact",
+      "tech_stack": "react-frontend",
+      "recommendations_count": 3,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.0026171207427978516
+    },
+    {
+      "repository_id": "b64091d0-977e-4c57-9414-20145a3fde50",
+      "repository_name": "Normalization_Middleware",
+      "tech_stack": "azure-functions",
+      "recommendations_count": 0,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.003998994827270508
+    },
+    {
+      "repository_id": "7a27b758-64a4-4191-8099-4a8cd6f7cd3d",
+      "repository_name": "IntelliPact-Observability",
+      "tech_stack": "devops-monitoring",
+      "recommendations_count": 4,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.009063005447387695
+    },
+    {
+      "repository_id": "063873f8-c0fb-46f2-807d-80614de12d11",
+      "repository_name": "RefactorForge",
+      "tech_stack": "general-typescript",
+      "recommendations_count": 3,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.012069940567016602
+    },
+    {
+      "repository_id": "ed10544d-9960-44d7-8ca2-b85f0fcfb00b",
+      "repository_name": "bMigrate",
+      "tech_stack": "legacy-migration",
+      "recommendations_count": 3,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.011004209518432617
+    },
+    {
+      "repository_id": "80cde5a4-bde5-4e6b-802d-d436d9255f0c",
+      "repository_name": "Tool-Box",
+      "tech_stack": "general-typescript",
+      "recommendations_count": 3,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.008932113647460938
+    },
+    {
+      "repository_id": "61fd2b25-d7cc-47d3-bed3-4c007a760eed",
+      "repository_name": "Western-Dental",
+      "tech_stack": "healthcare-enterprise",
+      "recommendations_count": 3,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.011635780334472656
+    },
+    {
+      "repository_id": "5222c9d5-bc43-450d-99a0-c1884ba496b4",
+      "repository_name": "azfunc",
+      "tech_stack": "azure-functions",
+      "recommendations_count": 0,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.0036509037017822266
+    },
+    {
+      "repository_id": "6132d54c-187a-4517-be2d-49768627d13c",
+      "repository_name": "intellipact-landing-page",
+      "tech_stack": "react-frontend",
+      "recommendations_count": 3,
+      "success": true,
+      "error_message": "",
+      "generation_time": 0.00947880744934082
+    }
+  ]
+}

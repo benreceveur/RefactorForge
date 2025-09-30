@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Backend service
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: refactorforge-backend
+    ports:
+      - "${BACKEND_PORT:-3721}:3721"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_PATH=/app/data/refactorforge.db
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - CORS_ORIGIN=http://localhost:${FRONTEND_PORT:-8745}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - refactorforge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3721/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # Frontend service  
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: refactorforge-frontend
+    ports:
+      - "${FRONTEND_PORT:-8745}:8745"
+    environment:
+      - REACT_APP_API_URL=http://localhost:${BACKEND_PORT:-3721}
+    depends_on:
+      - backend
+    networks:
+      - refactorforge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8745"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # Optional: Memory API service (if available)
+  memory-api:
+    image: node:18-alpine
+    container_name: refactorforge-memory-api
+    ports:
+      - "${MEMORY_API_PORT:-3722}:3722"
+    volumes:
+      - ~/.claude/memory:/app/memory
+    working_dir: /app/memory/integrations/api-server
+    command: ["node", "server.js"]
+    networks:
+      - refactorforge-network
+    profiles:
+      - with-memory
+    restart: unless-stopped
+
+networks:
+  refactorforge-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  logs:
+    driver: local

@@ -1,0 +1,1115 @@
+openapi: 3.0.3
+info:
+  title: RefactorForge API
+  description: |
+    RefactorForge is an advanced code intelligence platform that provides comprehensive repository analysis, 
+    pattern extraction, and automated refactoring recommendations. The API offers real-time GitHub scanning, 
+    performance monitoring, and intelligent code improvement suggestions.
+
+    ## Key Features
+    - **Multi-Repository Analysis**: Simultaneous scanning and analysis of multiple GitHub repositories
+    - **Pattern Recognition**: Advanced pattern extraction from TypeScript, JavaScript, Python, and other languages
+    - **Security Analysis**: Automated detection of security vulnerabilities and misconfigurations
+    - **Performance Optimization**: Identification of performance bottlenecks and optimization opportunities
+    - **Type Safety Analysis**: Detection of type safety issues and recommendations for improvements
+    - **Real-Time Monitoring**: Live GitHub webhook integration for continuous analysis
+    - **Recommendation Engine**: AI-powered suggestions for code improvements and refactoring
+
+    ## Authentication
+    Most endpoints require authentication via GitHub token for accessing private repositories and higher rate limits.
+
+    ## Rate Limiting
+    - **Authenticated**: 5000 requests/hour
+    - **Unauthenticated**: 60 requests/hour
+
+    ## Performance Features
+    - Connection pooling and request batching
+    - Intelligent caching with configurable TTL
+    - Streaming support for large files
+    - Optimized database queries with indexing
+  version: "2.1.0"
+  contact:
+    name: RefactorForge Team
+    email: support@refactorforge.com
+    url: https://github.com/RefactorForge/RefactorForge
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://refactorforge.com/terms
+
+servers:
+  - url: http://localhost:8001
+    description: Development server
+  - url: https://api.refactorforge.com
+    description: Production server
+
+security:
+  - GitHubToken: []
+
+paths:
+  /:
+    get:
+      summary: Get service information
+      description: |
+        Returns comprehensive information about the RefactorForge API including available endpoints,
+        features, GitHub integration status, and service statistics.
+      operationId: getServiceInfo
+      tags:
+        - Service
+      responses:
+        '200':
+          description: Service information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceInfo'
+              example:
+                name: "RefactorForge Multi-Repository API"
+                version: "2.1.0"
+                description: "Advanced code intelligence platform with live GitHub scanning"
+                endpoints:
+                  health: "/api/health"
+                  contacts: "/api/contacts"
+                  refactor: "/api/refactor"
+                  github: "/api/github"
+                  patterns: "/api/patterns"
+                features:
+                  multiRepository: true
+                  techStackDetection: true
+                  liveGitHubScanning: true
+                  realTimeAnalysis: true
+                githubIntegration:
+                  enabled: true
+                  status: "authenticated"
+                  rateLimitInfo: "GitHub API rate limits apply"
+
+  /api/health:
+    get:
+      summary: Health check
+      description: |
+        Comprehensive health check endpoint that provides detailed status information about:
+        - Database connectivity and performance
+        - GitHub API status and rate limits
+        - System resource utilization
+        - Service dependencies
+        
+        Includes 5-second caching to optimize monitoring queries.
+      operationId: getHealthStatus
+      tags:
+        - Health
+      responses:
+        '200':
+          description: All systems healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: One or more systems unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /api/repositories:
+    get:
+      summary: List repositories
+      description: |
+        Retrieves a paginated list of analyzed repositories with their metadata,
+        pattern counts, and analysis status.
+      operationId: listRepositories
+      tags:
+        - Repositories
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of repositories per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: language
+          in: query
+          description: Filter by programming language
+          required: false
+          schema:
+            type: string
+            example: TypeScript
+        - name: category
+          in: query
+          description: Filter by repository category
+          required: false
+          schema:
+            type: string
+            example: frontend
+      responses:
+        '200':
+          description: Repositories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repositories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Repository'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Add repository for analysis
+      description: |
+        Adds a new GitHub repository to the analysis system. The repository will be
+        scanned for patterns, security issues, type safety problems, and performance
+        bottlenecks.
+      operationId: addRepository
+      tags:
+        - Repositories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddRepositoryRequest'
+            example:
+              owner: octocat
+              repo: Hello-World
+              branch: main
+              categories: [sample, demo]
+      responses:
+        '201':
+          description: Repository added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Repository already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/repositories/{id}/scan:
+    post:
+      summary: Scan repository
+      description: |
+        Triggers a comprehensive scan of the specified repository including:
+        - Pattern extraction and classification
+        - Security vulnerability detection
+        - Type safety analysis  
+        - Performance bottleneck identification
+        
+        The scan runs asynchronously and results are stored in the database.
+      operationId: scanRepository
+      tags:
+        - Repositories
+        - Analysis
+      parameters:
+        - name: id
+          in: path
+          description: Repository ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force:
+                  type: boolean
+                  description: Force rescan even if recently analyzed
+                  default: false
+                options:
+                  type: object
+                  properties:
+                    includeTests:
+                      type: boolean
+                      default: true
+                    maxFiles:
+                      type: integer
+                      minimum: 1
+                      maximum: 1000
+                      default: 100
+      responses:
+        '202':
+          description: Scan initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResult'
+        '404':
+          description: Repository not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/repositories/{id}/patterns:
+    get:
+      summary: Get repository patterns
+      description: |
+        Retrieves all extracted patterns from a specific repository with optional
+        filtering and sorting capabilities.
+      operationId: getRepositoryPatterns
+      tags:
+        - Repositories
+        - Patterns
+      parameters:
+        - name: id
+          in: path
+          description: Repository ID
+          required: true
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: Filter by pattern category
+          required: false
+          schema:
+            type: string
+            enum: [function, type, import, react, security, async, error_handling]
+        - name: language
+          in: query
+          description: Filter by programming language
+          required: false
+          schema:
+            type: string
+        - name: confidence
+          in: query
+          description: Minimum confidence score (0-1)
+          required: false
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1
+      responses:
+        '200':
+          description: Patterns retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patterns:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pattern'
+                  total:
+                    type: integer
+                  repository:
+                    $ref: '#/components/schemas/Repository'
+
+  /api/patterns:
+    get:
+      summary: Search patterns across repositories
+      description: |
+        Searches for patterns across all analyzed repositories with advanced
+        filtering, sorting, and aggregation options.
+      operationId: searchPatterns
+      tags:
+        - Patterns
+      parameters:
+        - name: search
+          in: query
+          description: Search query for pattern content
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: Filter by pattern category
+          required: false
+          schema:
+            type: string
+        - name: language
+          in: query
+          description: Filter by programming language
+          required: false
+          schema:
+            type: string
+        - name: repository
+          in: query
+          description: Filter by repository name
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of patterns per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Patterns retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patterns:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pattern'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  aggregations:
+                    type: object
+                    properties:
+                      byCategory:
+                        type: object
+                        additionalProperties:
+                          type: integer
+                      byLanguage:
+                        type: object
+                        additionalProperties:
+                          type: integer
+                      byRepository:
+                        type: object
+                        additionalProperties:
+                          type: integer
+
+  /api/analysis/jobs:
+    get:
+      summary: List analysis jobs
+      description: |
+        Retrieves the status of all analysis jobs including queued, running,
+        completed, and failed jobs with progress information.
+      operationId: listAnalysisJobs
+      tags:
+        - Analysis
+      parameters:
+        - name: status
+          in: query
+          description: Filter by job status
+          required: false
+          schema:
+            type: string
+            enum: [queued, running, completed, failed]
+        - name: repository
+          in: query
+          description: Filter by repository name
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Analysis jobs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnalysisJob'
+
+    post:
+      summary: Create analysis job
+      description: |
+        Creates a new analysis job for a specific repository or multiple repositories.
+        Jobs are processed asynchronously in the background.
+      operationId: createAnalysisJob
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                repository:
+                  type: string
+                  description: Repository name (owner/repo)
+                jobType:
+                  type: string
+                  enum: [full_analysis, pattern_extraction, security_scan, performance_analysis]
+                  default: full_analysis
+                options:
+                  type: object
+                  properties:
+                    priority:
+                      type: string
+                      enum: [low, normal, high, urgent]
+                      default: normal
+      responses:
+        '201':
+          description: Analysis job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJob'
+
+  /api/github/integrations:
+    get:
+      summary: List GitHub integrations
+      description: |
+        Retrieves all configured GitHub repository integrations including
+        synchronization status, webhook configuration, and pattern counts.
+      operationId: listGitHubIntegrations
+      tags:
+        - GitHub
+      responses:
+        '200':
+          description: GitHub integrations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integrations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GitHubIntegration'
+                  total:
+                    type: integer
+                  active:
+                    type: integer
+                  totalPatterns:
+                    type: integer
+                  webhooksActive:
+                    type: integer
+
+    post:
+      summary: Add GitHub integration
+      description: |
+        Adds a new GitHub repository integration with webhook configuration
+        and automatic pattern extraction settings.
+      operationId: addGitHubIntegration
+      tags:
+        - GitHub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                repository:
+                  type: string
+                  description: Repository name (owner/repo)
+                  example: octocat/Hello-World
+                settings:
+                  type: object
+                  properties:
+                    autoSave:
+                      type: boolean
+                      default: true
+                    categories:
+                      type: array
+                      items:
+                        type: string
+                    minStars:
+                      type: integer
+                      minimum: 0
+                      default: 1
+      responses:
+        '201':
+          description: GitHub integration added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubIntegration'
+
+  /api/webhooks/github:
+    post:
+      summary: GitHub webhook endpoint
+      description: |
+        Handles GitHub webhook events for real-time repository analysis.
+        Supports push, pull request, and issue events for automatic
+        pattern extraction and recommendation updates.
+      operationId: handleGitHubWebhook
+      tags:
+        - Webhooks
+      parameters:
+        - name: X-GitHub-Event
+          in: header
+          description: GitHub event type
+          required: true
+          schema:
+            type: string
+            enum: [push, pull_request, issues, repository]
+        - name: X-Hub-Signature-256
+          in: header
+          description: GitHub webhook signature
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: GitHub webhook payload (varies by event type)
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  processed:
+                    type: object
+        '400':
+          description: Invalid webhook payload
+        '401':
+          description: Invalid webhook signature
+
+  /api/performance/metrics:
+    get:
+      summary: Get performance metrics
+      description: |
+        Retrieves comprehensive performance metrics including request statistics,
+        system resource utilization, and alert information.
+      operationId: getPerformanceMetrics
+      tags:
+        - Performance
+      parameters:
+        - name: minutes
+          in: query
+          description: Time window in minutes
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1440
+            default: 5
+        - name: detailed
+          in: query
+          description: Include detailed metric points
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Performance metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceMetrics'
+
+  /api/performance/alerts:
+    get:
+      summary: Get performance alerts
+      description: |
+        Retrieves active and recent performance alerts with severity levels
+        and resolution status.
+      operationId: getPerformanceAlerts
+      tags:
+        - Performance
+      parameters:
+        - name: severity
+          in: query
+          description: Filter by alert severity
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: resolved
+          in: query
+          description: Filter by resolution status
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Performance alerts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PerformanceAlert'
+
+    post:
+      summary: Resolve performance alert
+      description: |
+        Manually resolves an active performance alert by ID.
+      operationId: resolvePerformanceAlert
+      tags:
+        - Performance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alertId:
+                  type: string
+                  description: Alert ID to resolve
+                resolution:
+                  type: string
+                  description: Optional resolution note
+      responses:
+        '200':
+          description: Alert resolved successfully
+        '404':
+          description: Alert not found
+
+components:
+  securitySchemes:
+    GitHubToken:
+      type: http
+      scheme: bearer
+      bearerFormat: GitHub Personal Access Token
+      description: |
+        GitHub Personal Access Token for accessing private repositories and higher rate limits.
+        Generate at: https://github.com/settings/tokens
+
+  schemas:
+    ServiceInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          example: RefactorForge Multi-Repository API
+        version:
+          type: string
+          example: "2.1.0"
+        description:
+          type: string
+        endpoints:
+          type: object
+          additionalProperties:
+            type: string
+        features:
+          type: object
+          properties:
+            multiRepository:
+              type: boolean
+            techStackDetection:
+              type: boolean
+            patternExtraction:
+              type: boolean
+            liveGitHubScanning:
+              type: boolean
+        githubIntegration:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            status:
+              type: string
+              enum: [authenticated, public_access_only]
+        supportedRepositories:
+          type: integer
+        supportedPatterns:
+          type: string
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, unhealthy]
+        service:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          description: Uptime in seconds
+        checks:
+          type: object
+          properties:
+            database:
+              $ref: '#/components/schemas/HealthCheck'
+            github:
+              $ref: '#/components/schemas/HealthCheck'
+            memory:
+              $ref: '#/components/schemas/HealthCheck'
+            environment:
+              type: object
+              properties:
+                nodeVersion:
+                  type: string
+                platform:
+                  type: string
+
+    HealthCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy, unknown]
+        message:
+          type: string
+        error:
+          type: string
+        type:
+          type: string
+        performance:
+          type: object
+          additionalProperties: true
+
+    Repository:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        fullName:
+          type: string
+        description:
+          type: string
+        language:
+          type: string
+        patternsCount:
+          type: integer
+        lastUpdated:
+          type: string
+          format: date-time
+        lastAnalyzed:
+          type: string
+          format: date-time
+        categories:
+          type: array
+          items:
+            type: string
+        techStack:
+          type: array
+          items:
+            type: string
+        metrics:
+          type: object
+          properties:
+            linesOfCode:
+              type: integer
+            fileCount:
+              type: integer
+            complexity:
+              type: number
+
+    AddRepositoryRequest:
+      type: object
+      required:
+        - owner
+        - repo
+      properties:
+        owner:
+          type: string
+          description: GitHub username or organization
+        repo:
+          type: string
+          description: Repository name
+        branch:
+          type: string
+          description: Git branch to analyze
+          default: main
+        categories:
+          type: array
+          items:
+            type: string
+          description: Repository categories for classification
+
+    Pattern:
+      type: object
+      properties:
+        id:
+          type: string
+        repositoryId:
+          type: string
+        patternType:
+          type: string
+        patternName:
+          type: string
+        content:
+          type: string
+          description: Code snippet or pattern content
+        description:
+          type: string
+        category:
+          type: string
+        subcategory:
+          type: string
+        filePath:
+          type: string
+        lineStart:
+          type: integer
+        lineEnd:
+          type: integer
+        language:
+          type: string
+        framework:
+          type: string
+        confidenceScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        tags:
+          type: array
+          items:
+            type: string
+        contextBefore:
+          type: string
+        contextAfter:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ScanResult:
+      type: object
+      properties:
+        jobId:
+          type: string
+        repository:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        startedAt:
+          type: string
+          format: date-time
+        estimatedCompletion:
+          type: string
+          format: date-time
+        results:
+          type: object
+          properties:
+            patternsFound:
+              type: integer
+            securityIssues:
+              type: integer
+            typeSafetyIssues:
+              type: integer
+            performanceIssues:
+              type: integer
+
+    AnalysisJob:
+      type: object
+      properties:
+        id:
+          type: string
+        repositoryId:
+          type: string
+        jobType:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        resultsSummary:
+          type: string
+        errorMessage:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    GitHubIntegration:
+      type: object
+      properties:
+        id:
+          type: string
+        repository:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, syncing, error]
+        lastSync:
+          type: string
+          format: date-time
+        patternsCount:
+          type: integer
+        webhooksEnabled:
+          type: boolean
+        branches:
+          type: array
+          items:
+            type: string
+        settings:
+          type: object
+          properties:
+            autoSave:
+              type: boolean
+            categories:
+              type: array
+              items:
+                type: string
+            minStars:
+              type: integer
+
+    PerformanceMetrics:
+      type: object
+      properties:
+        requests:
+          type: object
+          properties:
+            total:
+              type: integer
+            errors:
+              type: integer
+            averageResponseTime:
+              type: number
+            p95ResponseTime:
+              type: number
+            p99ResponseTime:
+              type: number
+            throughput:
+              type: number
+            errorRate:
+              type: number
+        system:
+          type: object
+          properties:
+            averageMemoryUsage:
+              type: number
+            peakMemoryUsage:
+              type: number
+            averageCPUUsage:
+              type: number
+            peakCPUUsage:
+              type: number
+            averageEventLoopDelay:
+              type: number
+            maxEventLoopDelay:
+              type: number
+        alerts:
+          type: object
+          properties:
+            total:
+              type: integer
+            critical:
+              type: integer
+            high:
+              type: integer
+            unresolved:
+              type: integer
+
+    PerformanceAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [memory, cpu, response_time, error_rate, throughput]
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        message:
+          type: string
+        value:
+          type: number
+        threshold:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+        resolved:
+          type: boolean
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: boolean
+          example: true
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+
+tags:
+  - name: Service
+    description: Service information and metadata
+  - name: Health
+    description: System health and monitoring
+  - name: Repositories
+    description: Repository management and analysis
+  - name: Patterns
+    description: Code pattern extraction and search
+  - name: Analysis
+    description: Analysis jobs and results
+  - name: GitHub
+    description: GitHub integration and webhooks
+  - name: Webhooks
+    description: Webhook endpoints for real-time updates
+  - name: Performance
+    description: Performance monitoring and metrics

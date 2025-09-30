@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analytics API Test</title>
+</head>
+<body>
+    <h1>Analytics API Test</h1>
+    <div id="output"></div>
+    
+    <script>
+        async function testAnalytics() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Testing analytics API...';
+            
+            try {
+                const response = await fetch('http://localhost:3721/api/analytics');
+                const data = await response.json();
+                
+                output.innerHTML = `
+                    <h2>Success!</h2>
+                    <p>Total Patterns: ${data.totalPatterns}</p>
+                    <p>Searches This Week: ${data.searchesThisWeek}</p>
+                    <p>Active Repositories: ${data.activeRepositories}</p>
+                    <p>Category Distribution: ${data.categoryDistribution?.length || 0} categories</p>
+                    <p>Top Search Terms: ${data.topSearchTerms?.length || 0} terms</p>
+                    <p>Recent Activity: ${data.recentActivity?.length || 0} activities</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                output.innerHTML = `<h2>Error:</h2><p>${error.message}</p>`;
+            }
+        }
+        
+        // Test on load
+        testAnalytics();
+    </script>
+</body>
+</html>

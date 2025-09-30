@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Integration Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .repo-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .repo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .repo-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        .repo-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-syncing {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .repo-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .detail-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 3px;
+        }
+        .detail-value {
+            font-weight: 500;
+            color: #333;
+        }
+        .categories {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .category-tag {
+            background: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .sync-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .sync-button:hover {
+            background: #5a6fd8;
+        }
+        .sync-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔗 GitHub Integration Test</h1>
+        <p>Testing IntelliPact Repository Integration with RefactorForge</p>
+    </div>
+    
+    <div id="stats" class="stats"></div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="loading" class="loading">Loading GitHub integrations...</div>
+    <div id="repos"></div>
+
+    <script>
+        const API_URL = 'http://localhost:8001/api/github/integrations';
+        
+        async function fetchGitHubIntegrations() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                displayData(data);
+            } catch (error) {
+                displayError(error);
+            }
+        }
+        
+        function displayData(data) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            
+            // Display stats
+            const statsHtml = `
+                <div class="stat-card">
+                    <div class="stat-value">${data.total}</div>
+                    <div class="stat-label">Total Repositories</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.active}</div>
+                    <div class="stat-label">Active Integrations</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.totalPatterns.toLocaleString()}</div>
+                    <div class="stat-label">Total Patterns</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.webhooksActive}</div>
+                    <div class="stat-label">Webhooks Active</div>
+                </div>
+            `;
+            document.getElementById('stats').innerHTML = statsHtml;
+            
+            // Display repositories
+            const reposHtml = data.integrations.map(repo => `
+                <div class="repo-card">
+                    <div class="repo-header">
+                        <div class="repo-name">${repo.repository}</div>
+                        <div class="repo-status status-${repo.status}">${repo.status.toUpperCase()}</div>
+                    </div>
+                    <div class="repo-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Patterns</span>
+                            <span class="detail-value">${repo.patternsCount}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Last Sync</span>
+                            <span class="detail-value">${new Date(repo.lastSync).toLocaleString()}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Webhooks</span>
+                            <span class="detail-value">${repo.webhooksEnabled ? '✅ Enabled' : '❌ Disabled'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Categories</span>
+                            <div class="categories">
+                                ${repo.settings.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Branches</span>
+                            <span class="detail-value">${repo.branches.join(', ')}</span>
+                        </div>
+                        <div class="detail-item">
+                            <button class="sync-button" onclick="syncRepo('${repo.id}')" ${repo.status === 'syncing' ? 'disabled' : ''}>
+                                ${repo.status === 'syncing' ? 'Syncing...' : 'Sync Now'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('repos').innerHTML = reposHtml;
+        }
+        
+        function displayError(error) {
+            document.getElementById('loading').style.display = 'none';
+            const errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = `Error: ${error.message}. Make sure the backend is running on port 8001.`;
+        }
+        
+        async function syncRepo(id) {
+            try {
+                const response = await fetch(`http://localhost:8001/api/github/integrations/${id}/sync`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                alert(`Sync ${data.success ? 'successful' : 'failed'}: ${data.message}`);
+                fetchGitHubIntegrations(); // Refresh the list
+            } catch (error) {
+                alert(`Sync error: ${error.message}`);
+            }
+        }
+        
+        // Fetch data on page load
+        fetchGitHubIntegrations();
+        
+        // Refresh every 30 seconds
+        setInterval(fetchGitHubIntegrations, 30000);
+    </script>
+</body>
+</html>

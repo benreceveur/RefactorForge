@@ -1,0 +1,103 @@
+# Azure Managed Identity Configuration for RefactorForge
+
+# App Service Configuration
+app_service:
+  name: refactorforge-app
+  resource_group: refactorforge-rg
+  location: eastus
+  
+  # Enable System-assigned Managed Identity
+  identity:
+    type: SystemAssigned
+  
+  # Environment variables for the app
+  app_settings:
+    NODE_ENV: production
+    AZURE_KEY_VAULT_URL: https://refactorforge-kv.vault.azure.net/
+    PORT: 8001
+
+# Key Vault Configuration
+key_vault:
+  name: refactorforge-kv
+  resource_group: refactorforge-rg
+  location: eastus
+  
+  # Access policies for the managed identity
+  access_policies:
+    - object_id: "{{ app_service.identity.principal_id }}"
+      permissions:
+        secrets: ["get", "list"]
+        
+  # Secrets to create
+  secrets:
+    - name: github-webhook-secret
+      value: "{{ secrets.github_webhook_secret }}"
+    - name: github-token
+      value: "{{ secrets.github_token }}"
+    - name: jwt-secret
+      value: "{{ secrets.jwt_secret }}"
+    - name: session-secret
+      value: "{{ secrets.session_secret }}"
+    - name: database-encryption-key
+      value: "{{ secrets.database_encryption_key }}"
+    - name: admin-api-key
+      value: "{{ secrets.admin_api_key }}"
+
+# Deployment script
+deployment:
+  terraform: |
+    # Create resource group
+    resource "azurerm_resource_group" "refactorforge" {
+      name     = "refactorforge-rg"
+      location = "East US"
+    }
+    
+    # Create Key Vault
+    resource "azurerm_key_vault" "refactorforge" {
+      name                = "refactorforge-kv"
+      location            = azurerm_resource_group.refactorforge.location
+      resource_group_name = azurerm_resource_group.refactorforge.name
+      tenant_id           = data.azurerm_client_config.current.tenant_id
+      sku_name            = "standard"
+    }
+    
+    # Create App Service Plan
+    resource "azurerm_service_plan" "refactorforge" {
+      name                = "refactorforge-plan"
+      resource_group_name = azurerm_resource_group.refactorforge.name
+      location            = azurerm_resource_group.refactorforge.location
+      os_type             = "Linux"
+      sku_name            = "B1"
+    }
+    
+    # Create App Service with Managed Identity
+    resource "azurerm_linux_web_app" "refactorforge" {
+      name                = "refactorforge-app"
+      resource_group_name = azurerm_resource_group.refactorforge.name
+      location            = azurerm_resource_group.refactorforge.location
+      service_plan_id     = azurerm_service_plan.refactorforge.id
+      
+      identity {
+        type = "SystemAssigned"
+      }
+      
+      site_config {
+        application_stack {
+          node_version = "18-lts"
+        }
+      }
+      
+      app_settings = {
+        NODE_ENV = "production"
+        AZURE_KEY_VAULT_URL = azurerm_key_vault.refactorforge.vault_uri
+      }
+    }
+    
+    # Grant App Service access to Key Vault
+    resource "azurerm_key_vault_access_policy" "app_service" {
+      key_vault_id = azurerm_key_vault.refactorforge.id
+      tenant_id    = azurerm_linux_web_app.refactorforge.identity[0].tenant_id
+      object_id    = azurerm_linux_web_app.refactorforge.identity[0].principal_id
+      
+      secret_permissions = ["Get", "List"]
+    }
