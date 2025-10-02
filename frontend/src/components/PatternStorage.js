@@ -75,7 +75,7 @@ const PatternStorage = () => {
       };
       
       // Save to real API
-      const result = await apiService.createPattern(pattern);
+      await apiService.createPattern(pattern);
       
       // Track pattern creation event for timeline
       await apiService.trackEvent({

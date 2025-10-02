@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, GitCommit, Search, Save, Edit, Trash, Filter, Calendar, User, GitBranch, Tag, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, formatDistanceToNow, isToday, isYesterday, startOfDay, endOfDay } from 'date-fns';
@@ -31,11 +31,7 @@ const MemoryTimeline = () => {
 
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchTimelineData();
-  }, []);
-
-  const fetchTimelineData = async () => {
+  const fetchTimelineData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -86,7 +82,11 @@ const MemoryTimeline = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    fetchTimelineData();
+  }, [fetchTimelineData]);
 
   useEffect(() => {
     let filtered = timelineData;

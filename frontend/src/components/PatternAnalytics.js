@@ -1,20 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  TrendingUp, 
-  Activity, 
-  BarChart3, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Activity,
   PieChart as PieChartIcon,
-  Calendar,
   Search,
   GitBranch,
-  Database,
-  Zap
+  Database
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import apiService from '../services/api';
 import TimelineInsights from './TimelineInsights';
 
@@ -23,11 +19,7 @@ const PatternAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('7d');
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [selectedPeriod]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       const data = await apiService.getAnalytics();
@@ -62,7 +54,11 @@ const PatternAnalytics = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const getActivityIcon = (type) => {
     switch (type) {
