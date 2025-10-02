@@ -1,6 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { Octokit } from '@octokit/rest';
 import { logger } from '../utils/logger';
+import { dbAll } from '../utils/database-helpers';
+import { RepositoryRow } from '../types/database.types';
+
+// Type definition for integration response
+interface IntegrationResponse {
+  integrations: any[];
+  total: number;
+  active: number;
+  totalPatterns: number;
+  webhooksActive: number;
+  source: string;
+  error?: string;
+}
 
 const router = Router();
 
@@ -9,18 +22,94 @@ const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
 });
 
-// Get GitHub integrations from real GitHub API
-const getGitHubIntegrations = async () => {
+// Get repositories from local database as fallback
+const getLocalRepositories = async (): Promise<IntegrationResponse> => {
+  try {
+    logger.info('Fetching repositories from local database as fallback');
+
+    const repositories = await dbAll<RepositoryRow>(
+      'SELECT * FROM repositories ORDER BY updated_at DESC LIMIT 50'
+    );
+
+    // Transform local repositories to match GitHub integration format
+    const transformedRepos = repositories.map((repo) => {
+      let categories: string[] = [];
+      let branches: string[] = [];
+
+      try {
+        categories = repo.categories ? JSON.parse(repo.categories) : ['general'];
+      } catch {
+        categories = ['general'];
+      }
+
+      try {
+        branches = repo.branches ? JSON.parse(repo.branches) : ['main'];
+      } catch {
+        branches = ['main'];
+      }
+
+      return {
+        id: `local-integration-${repo.id}`,
+        repository: repo.full_name,
+        status: repo.analysis_status === 'analyzed' ? 'active' : 'pending',
+        lastSync: repo.last_analyzed || repo.updated_at,
+        patternsCount: repo.patterns_count || 0,
+        webhooksEnabled: false, // Local repos don't have webhooks
+        branches: branches,
+        settings: {
+          autoSave: true,
+          categories: categories,
+          minStars: 0
+        },
+        // Transform local repository data to match GitHub format
+        stars: 0, // Not available in local db
+        forks: 0, // Not available in local db
+        language: repo.primary_language,
+        description: repo.description,
+        private: false, // Assume public for local repos
+        updated_at: repo.updated_at,
+        created_at: repo.created_at,
+        size: 0, // Not available in local db
+        topics: categories,
+        // Additional local-specific fields
+        organization: repo.organization,
+        tech_stack: repo.tech_stack,
+        framework: repo.framework,
+        isLocal: true // Flag to indicate this is from local database
+      };
+    });
+
+    return {
+      integrations: transformedRepos,
+      total: transformedRepos.length,
+      active: transformedRepos.filter(repo => repo.status === 'active').length,
+      totalPatterns: transformedRepos.reduce((sum, repo) => sum + repo.patternsCount, 0),
+      webhooksActive: 0, // Local repos don't have webhooks
+      source: 'local_database'
+    };
+  } catch (error: any) {
+    logger.error('Failed to fetch repositories from local database', { error: error.message });
+    return {
+      integrations: [],
+      total: 0,
+      active: 0,
+      totalPatterns: 0,
+      webhooksActive: 0,
+      source: 'local_database',
+      error: 'Failed to fetch local repositories'
+    };
+  }
+};
+
+// Get GitHub integrations from real GitHub API with local database fallback
+const getGitHubIntegrations = async (): Promise<IntegrationResponse> => {
   try {
     if (!process.env.GITHUB_TOKEN) {
-      logger.warn('No GitHub token configured, returning empty integrations');
+      logger.warn('No GitHub token configured, falling back to local repositories');
+      const localData = await getLocalRepositories();
       return {
-        integrations: [],
-        total: 0,
-        active: 0,
-        totalPatterns: 0,
-        webhooksActive: 0,
-        error: 'GitHub token not configured'
+        ...localData,
+        error: 'GitHub token not configured - showing local repositories'
       };
     }
 
@@ -83,11 +172,12 @@ const getGitHubIntegrations = async () => {
       total: repositories.length,
       active: repositories.filter(repo => repo.status === 'active').length,
       totalPatterns: repositories.reduce((sum, repo) => sum + repo.patternsCount, 0),
-      webhooksActive: repositories.filter(repo => repo.webhooksEnabled).length
+      webhooksActive: repositories.filter(repo => repo.webhooksEnabled).length,
+      source: 'github_api'
     };
   } catch (error: any) {
-    logger.error('Failed to fetch GitHub integrations:', error);
-    
+    logger.error('Failed to fetch GitHub integrations', { error: error.message, status: error.status });
+
     // Provide helpful error messages based on error type
     let errorMessage = 'Failed to fetch GitHub repositories';
     if (error.status === 401) {
@@ -98,14 +188,26 @@ const getGitHubIntegrations = async () => {
       errorMessage = 'GitHub API endpoint not found';
     }
 
-    return {
-      integrations: [],
-      total: 0,
-      active: 0,
-      totalPatterns: 0,
-      webhooksActive: 0,
-      error: errorMessage
-    };
+    // Fall back to local repositories when GitHub API fails
+    logger.warn('GitHub API failed, falling back to local repositories');
+    try {
+      const localData = await getLocalRepositories();
+      return {
+        ...localData,
+        error: `${errorMessage} - showing local repositories instead`
+      };
+    } catch (localError: any) {
+      logger.error('Local repository fallback also failed', { error: localError.message });
+      return {
+        integrations: [],
+        total: 0,
+        active: 0,
+        totalPatterns: 0,
+        webhooksActive: 0,
+        source: 'none',
+        error: `${errorMessage}. Local repository fallback also failed: ${localError.message}`
+      };
+    }
   }
 };
 
@@ -113,16 +215,26 @@ const getGitHubIntegrations = async () => {
 router.get('/integrations', async (req: Request, res: Response) => {
   try {
     const integrations = await getGitHubIntegrations();
-    res.json(integrations);
-  } catch (error) {
-    console.error('Error fetching GitHub integrations:', error);
+
+    // Set appropriate HTTP status based on source
+    let statusCode = 200;
+    if ('error' in integrations && integrations.source === 'local_database') {
+      statusCode = 206; // Partial Content - indicating fallback data
+    } else if ('error' in integrations && integrations.source === 'none') {
+      statusCode = 503; // Service Unavailable
+    }
+
+    res.status(statusCode).json(integrations);
+  } catch (error: any) {
+    logger.error('Error fetching GitHub integrations', { error: error.message });
     res.status(500).json({
       error: 'Failed to fetch GitHub integrations',
       integrations: [],
       total: 0,
       active: 0,
       totalPatterns: 0,
-      webhooksActive: 0
+      webhooksActive: 0,
+      source: 'none'
     });
   }
 });
@@ -245,6 +357,26 @@ router.put('/integrations/:id/webhooks', async (req: Request, res: Response) => 
     res.status(500).json({
       success: false,
       error: 'Failed to update webhook settings'
+    });
+  }
+});
+
+// Test endpoint to get local repositories (for debugging and testing)
+router.get('/integrations/local', async (req: Request, res: Response) => {
+  try {
+    logger.info('Testing local repositories fallback endpoint');
+    const localData = await getLocalRepositories();
+    res.json(localData);
+  } catch (error: any) {
+    logger.error('Error testing local repositories', { error: error.message });
+    res.status(500).json({
+      error: 'Failed to fetch local repositories',
+      integrations: [],
+      total: 0,
+      active: 0,
+      totalPatterns: 0,
+      webhooksActive: 0,
+      source: 'none'
     });
   }
 });

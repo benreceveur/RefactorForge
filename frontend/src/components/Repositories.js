@@ -176,15 +176,18 @@ const Repositories = () => {
 
   const filteredRepositories = deduplicateRepositories(repositories)
     .filter(repo => {
-      const matchesSearch = 
-        repo.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        repo.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        repo.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesFilter = filterStatus === 'all' || 
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        repo.name?.toLowerCase().includes(searchLower) ||
+        repo.fullName?.toLowerCase().includes(searchLower) ||
+        repo.description?.toLowerCase().includes(searchLower) ||
+        repo.organization?.toLowerCase().includes(searchLower) ||
+        (repo.fullName && repo.fullName.includes('/') && repo.fullName.split('/')[0].toLowerCase().includes(searchLower));
+
+      const matchesFilter = filterStatus === 'all' ||
         (filterStatus === 'analyzed' && repo.patternsCount > 0) ||
         (filterStatus === 'pending' && repo.patternsCount === 0);
-      
+
       return matchesSearch && matchesFilter;
     })
     .sort((a, b) => {
@@ -284,7 +287,7 @@ const Repositories = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search repositories..."
+                placeholder="Search repositories, organizations, or descriptions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-memory-500"
@@ -364,7 +367,20 @@ const Repositories = () => {
                       <h3 className="font-semibold text-gray-900">
                         {repo.name || 'Unknown Repository'}
                       </h3>
-                      <div className="flex gap-2 mt-1">
+                      {/* Organization and repo metadata */}
+                      <div className="flex gap-2 mt-1 flex-wrap">
+                        {/* Organization Display */}
+                        {repo.organization && (
+                          <span className="text-xs text-memory-700 bg-memory-100 px-2 py-0.5 rounded">
+                            {repo.organization}
+                          </span>
+                        )}
+                        {/* Extract organization from fullName if not in organization field */}
+                        {!repo.organization && repo.fullName && repo.fullName.includes('/') && (
+                          <span className="text-xs text-memory-700 bg-memory-100 px-2 py-0.5 rounded">
+                            {repo.fullName.split('/')[0]}
+                          </span>
+                        )}
                         {repo.private && (
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                             Private
@@ -386,11 +402,16 @@ const Repositories = () => {
                 </div>
 
                 {/* Repository Description */}
-                {repo.description && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {repo.description}
-                  </p>
-                )}
+                <div className="text-sm text-gray-600 mb-4">
+                  {repo.description && repo.description !== 'general repository' ? (
+                    <p className="line-clamp-2">{repo.description}</p>
+                  ) : (
+                    <p className="line-clamp-2 italic">
+                      {repo.organization || (repo.fullName && repo.fullName.includes('/') ? repo.fullName.split('/')[0] : 'Unknown')} repository
+                      {repo.language && repo.language !== 'Unknown' && ` • ${repo.language}`}
+                    </p>
+                  )}
+                </div>
 
                 {/* Repository Stats */}
                 <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
@@ -423,9 +444,9 @@ const Repositories = () => {
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  {repo.url && (
+                  {(repo.url || repo.fullName) && (
                     <a
-                      href={repo.url}
+                      href={repo.url || `https://github.com/${repo.fullName}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium text-center"
