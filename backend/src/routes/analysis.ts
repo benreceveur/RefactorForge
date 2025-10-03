@@ -214,9 +214,22 @@ router.post('/repositories/:id/analyze', async (req: Request, res: Response) => 
         // - Code patterns and anti-patterns
         // - Architecture decisions
         // - Potential refactoring opportunities
-        // Currently using placeholder until GitHub scanner integration is complete
         console.log(`📊 Phase 2: Extracting code patterns from ${repository.name}`);
-        const patterns: Pattern[] = []; // TODO: Integrate with GitHubScanner for real pattern extraction
+
+        // Initialize GitHub scanner for real pattern extraction
+        const GitHubScanner = require('../services/github-scanner').GitHubScanner;
+        const scanner = new GitHubScanner(process.env.GITHUB_TOKEN);
+
+        // Extract repository info for GitHub scanning
+        const [owner, repoName] = repository.full_name.split('/');
+        const scanResult = await scanner.scanRepository({
+          owner,
+          repo: repoName,
+          branch: 'main'
+        });
+
+        // Extract patterns from scan results
+        const patterns: Pattern[] = scanResult.patterns || [];
         
         // Progress: 70% - Pattern extraction complete
         await updateAnalysisJobProgress(jobId, 0.7);
@@ -246,7 +259,19 @@ router.post('/repositories/:id/analyze', async (req: Request, res: Response) => 
         // Generate actionable recommendations based on analysis results
         // This is where the AI-powered improvement suggestions are created
         console.log(`🎯 Phase 5: Generating AI-powered recommendations for ${repository.name}`);
-        const recommendations = await recommendationEngine.generateRecommendations(repositoryId);
+
+        // Clear existing recommendations to ensure fresh data
+        await clearRepositoryRecommendations(repositoryId);
+
+        // Generate new recommendations based on actual scan results
+        const recommendations = await recommendationEngine.generateRecommendationsFromScan(
+          repositoryId,
+          {
+            securityIssues: scanResult.securityIssues || [],
+            typeSafetyIssues: scanResult.typeSafetyIssues || [],
+            performanceIssues: scanResult.performanceIssues || []
+          }
+        );
         
         // === PHASE 6: FINALIZATION ===
         // Mark the analysis job as successfully completed with comprehensive results
@@ -453,33 +478,83 @@ router.get('/repositories/:id/recommendations', async (req: Request, res: Respon
   }
 });
 
-// POST /api/analysis/repositories/:id/recommendations/regenerate - Regenerate recommendations
+// POST /api/analysis/repositories/:id/recommendations/regenerate - Regenerate recommendations with live scanning
 router.post('/repositories/:id/recommendations/regenerate', async (req: Request, res: Response) => {
   const repositoryId = req.params.id;
-  
+  const { forceScan = true } = req.body;
+
   if (!repositoryId) {
     return res.status(400).json({ error: 'Repository ID is required' });
   }
-  
+
   try {
     const repository = await getRepositoryById(repositoryId);
     if (!repository) {
       return res.status(404).json({ error: 'Repository not found' });
     }
-    
+
     // Clear existing recommendations
     await clearRepositoryRecommendations(repositoryId);
-    
-    // Generate new recommendations
-    const recommendations = await recommendationEngine.generateRecommendations(repositoryId);
-    
+
+    let recommendations: any[] = [];
+    let scanResult: any = null;
+
+    if (forceScan) {
+      // Perform live GitHub scanning
+      console.log(`🔄 Live scanning repository: ${repository.full_name}`);
+      const GitHubScanner = require('../services/github-scanner').GitHubScanner;
+      const scanner = new GitHubScanner(process.env.GITHUB_TOKEN);
+
+      const [owner, repoName] = repository.full_name.split('/');
+      scanResult = await scanner.scanRepository({
+        owner,
+        repo: repoName,
+        branch: 'main'
+      });
+
+      // Generate recommendations based on fresh scan results
+      recommendations = await recommendationEngine.generateRecommendationsFromScan(
+        repositoryId,
+        {
+          securityIssues: scanResult.securityIssues || [],
+          typeSafetyIssues: scanResult.typeSafetyIssues || [],
+          performanceIssues: scanResult.performanceIssues || []
+        }
+      );
+
+      // Update repository with scan results
+      await updateRepositoryAnalysis(repositoryId, {
+        techStack: repository.tech_stack,
+        primaryLanguage: repository.primary_language,
+        framework: repository.framework || 'Unknown',
+        patternsCount: scanResult.patterns?.length || 0,
+        clonePath: '',
+        metadata: {
+          lastScanned: new Date().toISOString(),
+          securityIssues: scanResult.securityIssues?.length || 0,
+          typeSafetyIssues: scanResult.typeSafetyIssues?.length || 0,
+          performanceIssues: scanResult.performanceIssues?.length || 0
+        }
+      });
+    } else {
+      // Generate recommendations without scanning
+      recommendations = await recommendationEngine.generateRecommendations(repositoryId);
+    }
+
     res.json({
       message: 'Recommendations regenerated successfully',
       repositoryId,
       recommendationsCount: recommendations.length,
+      scanPerformed: forceScan,
+      scanResults: forceScan ? {
+        patterns: scanResult?.patterns?.length || 0,
+        securityIssues: scanResult?.securityIssues?.length || 0,
+        typeSafetyIssues: scanResult?.typeSafetyIssues?.length || 0,
+        performanceIssues: scanResult?.performanceIssues?.length || 0
+      } : null,
       recommendations: recommendations.slice(0, 10) // Return first 10 for preview
     });
-    
+
   } catch (error: unknown) {
     console.error('Recommendation regeneration error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

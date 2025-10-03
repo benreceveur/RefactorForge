@@ -34,6 +34,7 @@ import templatesRoutes from './routes/templates';
 import errorRoutes from './routes/errors';
 import performanceRoutes from './routes/performance';
 import healthRoutes from './routes/health';
+import scannerRoutes from './routes/scanner';
 
 const app = express();
 
@@ -113,6 +114,7 @@ app.use('/api/analysis', analysisRoutes);
 app.use('/api/templates', templatesRoutes);
 app.use('/api/errors', errorRoutes);
 app.use('/api/performance', performanceRoutes);
+app.use('/api/scanner', scannerRoutes);
 
 // Event tracking endpoint
 app.post('/api/events', asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -142,9 +144,27 @@ app.post('/api/events', asyncHandler(async (req: Request, res: Response): Promis
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     name: 'RefactorForge Multi-Repository API',
-    version: '2.1.0',
-    description: 'Advanced code intelligence platform with live GitHub scanning',
-    // ... (rest of the root response)
+    version: '2.2.0',
+    description: 'Advanced code intelligence platform with live GitHub scanning and automated recommendation generation',
+    features: [
+      'Live GitHub repository scanning',
+      'Real-time pattern extraction',
+      'Automated recommendation generation',
+      'Periodic repository analysis',
+      'Security, type safety, and performance detection',
+      'Multi-repository support',
+      'Intelligent caching and performance optimization'
+    ],
+    endpoints: {
+      health: '/api/health',
+      analysis: '/api/analysis',
+      scanner: '/api/scanner',
+      repositories: '/api/repositories',
+      improvements: '/api/improvements',
+      patterns: '/api/patterns',
+      analytics: '/api/analytics'
+    },
+    timestamp: new Date().toISOString()
   });
 });
 

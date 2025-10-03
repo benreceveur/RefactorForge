@@ -295,17 +295,21 @@ ${improvement.metrics ? `
         try {
           setRefreshMessage(`Scanning ${repo.name}... (${totalRefreshed + 1}/${repositories.length})`);
 
-          const refreshResult = await apiService.refreshRepository(repo.fullName);
-          refreshResults.push(refreshResult);
+          // Use repository ID instead of fullName for the new endpoint
+          const refreshResult = await apiService.refreshRepository(repo.id);
+          refreshResults.push({
+            ...refreshResult,
+            repositoryName: repo.name || repo.fullName
+          });
 
           if (refreshResult.success) {
             totalRefreshed++;
-            totalFixed += refreshResult.fixedIssues?.total || 0;
+            totalFixed += refreshResult.newRecommendations || 0;
           }
         } catch (error) {
           refreshResults.push({
             success: false,
-            repositoryName: repo.fullName,
+            repositoryName: repo.name || repo.fullName,
             error: error.message
           });
         }
@@ -318,11 +322,11 @@ ${improvement.metrics ? `
       // Show completion message
       const successfulRefreshes = refreshResults.filter(r => r.success).length;
       const failedRefreshes = repositories.length - successfulRefreshes;
-      
+
       if (failedRefreshes > 0) {
-        setRefreshMessage(`Refreshed ${successfulRefreshes}/${repositories.length} repositories. ${failedRefreshes} failed due to GitHub access issues. ${totalFixed} issues were resolved.`);
+        setRefreshMessage(`Refreshed ${successfulRefreshes}/${repositories.length} repositories. ${failedRefreshes} failed. Generated ${totalFixed} new recommendations from live scans.`);
       } else {
-        setRefreshMessage(`Successfully refreshed all ${totalRefreshed} repositories! ${totalFixed} issues were resolved.`);
+        setRefreshMessage(`Successfully refreshed all ${totalRefreshed} repositories! Generated ${totalFixed} new recommendations from live GitHub scans.`);
       }
       
       setTimeout(() => setRefreshMessage(''), 5000);

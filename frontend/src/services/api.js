@@ -194,9 +194,28 @@ class MemoryAPIService {
 
   // Refresh a specific repository with live GitHub scanning
   async refreshRepository(repositoryId) {
-    return this.request(`/api/repositories/${encodeURIComponent(repositoryId)}/refresh`, {
-      method: 'POST'
-    });
+    try {
+      // Use the new regenerate endpoint with live scanning
+      const response = await this.request(`/api/analysis/repositories/${encodeURIComponent(repositoryId)}/recommendations/regenerate`, {
+        method: 'POST',
+        body: JSON.stringify({
+          forceScan: true // Enable live GitHub scanning
+        })
+      });
+
+      // Return enhanced result for UI
+      return {
+        success: true,
+        repositoryId: repositoryId,
+        newRecommendations: response.recommendationsCount || 0,
+        scanPerformed: response.scanPerformed,
+        scanResults: response.scanResults,
+        message: response.message || `Generated ${response.recommendationsCount || 0} new recommendations`
+      };
+    } catch (error) {
+      console.error('Error refreshing repository:', error);
+      throw error;
+    }
   }
 
   // Get ALL recommendations from ALL repositories

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Count Test</title>
+</head>
+<body>
+    <h1>Repository Count Test</h1>
+    <div id="result">Loading...</div>
+
+    <script>
+        async function testRepositoryCount() {
+            try {
+                const response = await fetch('http://localhost:8001/api/improvements');
+                const data = await response.json();
+
+                const result = document.getElementById('result');
+                result.innerHTML = `
+                    <h2>Test Results:</h2>
+                    <p><strong>Repository Count:</strong> ${data.repositoryCount || 'MISSING'}</p>
+                    <p><strong>Repositories Analyzed:</strong> ${data.repositoriesAnalyzed || 'MISSING'}</p>
+                    <p><strong>Total Improvements:</strong> ${data.total || 0}</p>
+                    <p><strong>Improvements Length:</strong> ${data.improvements ? data.improvements.length : 0}</p>
+
+                    <h3>Unique Repositories in Improvements:</h3>
+                    <ul>
+                        ${data.improvements ? Array.from(new Set(data.improvements.map(imp => imp.repository))).map(repo => `<li>${repo}</li>`).join('') : '<li>No improvements found</li>'}
+                    </ul>
+
+                    <h3>Status:</h3>
+                    <p style="color: ${data.repositoryCount === 12 ? 'green' : 'red'};">
+                        ${data.repositoryCount === 12 ? '✅ FIXED: Shows 12 repositories' : `❌ ISSUE: Shows ${data.repositoryCount || 'undefined'} repositories`}
+                    </p>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h2>Error:</h2>
+                    <p style="color: red;">${error.message}</p>
+                    <p>Make sure the backend server is running on http://localhost:8001</p>
+                `;
+            }
+        }
+
+        testRepositoryCount();
+    </script>
+</body>
+</html>
