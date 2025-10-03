@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { dbAll, dbRun, dbGet } from '../utils/database-helpers';
 import { RepositoryInfo, RepositoryAnalyzer } from './repository-analyzer';
+import { recommendationValidator, ValidationResult } from './recommendation-quality-validator';
+import { trainingSystem } from './recommendation-training-system';
 import {
   RepositoryRow,
   RecommendationRow,
@@ -1182,11 +1184,18 @@ export class RecommendationEngine {
       console.warn(`No generator found for tech stack: ${repository.techStack}`);
     }
     
-    const prioritizedRecommendations = this.prioritizeRecommendations(recommendations);
-    
+    // QUALITY VALIDATION: Validate recommendations against actual codebase
+    // This prevents false positives like the error handling case
+    const validatedRecommendations = await this.validateRecommendations(
+      recommendations,
+      repository.fullName || repositoryId
+    );
+
+    const prioritizedRecommendations = this.prioritizeRecommendations(validatedRecommendations);
+
     // Save to database
     await this.saveRecommendationsToDatabase(prioritizedRecommendations);
-    
+
     return prioritizedRecommendations;
   }
 
@@ -1670,5 +1679,95 @@ export class RecommendationEngine {
     console.log(`\n🎉 Multi-repository recommendation generation complete!`);
     console.log(`📈 Total recommendations generated: ${totalRecommendations}`);
     console.log(`🏢 Repositories processed: ${repositories.length}`);
+  }
+
+  /**
+   * Validates recommendations against actual codebase to prevent false positives
+   * Learned from the error handling case where recommendation claimed "0% coverage"
+   * when the codebase actually had 85-90% sophisticated error handling
+   */
+  private async validateRecommendations(
+    recommendations: Recommendation[],
+    repositoryPath: string
+  ): Promise<Recommendation[]> {
+    const validatedRecommendations: Recommendation[] = [];
+    const rejectedCount = { total: 0, reasons: new Map<string, number>() };
+
+    console.log(`🔍 Validating ${recommendations.length} recommendations against actual codebase...`);
+
+    for (const recommendation of recommendations) {
+      try {
+        const validation = await recommendationValidator.validateRecommendation(
+          recommendation,
+          repositoryPath
+        );
+
+        if (validation.isValid && validation.recommendation === 'approve') {
+          validatedRecommendations.push({
+            ...recommendation,
+            // Add validation metadata
+            metadata: {
+              ...recommendation.metadata,
+              validationConfidence: validation.confidence,
+              actualCoverage: validation.actualCoverage,
+              validatedAt: new Date().toISOString()
+            }
+          });
+        } else {
+          rejectedCount.total++;
+          const reason = validation.conflictingEvidence[0] || 'Failed validation';
+          rejectedCount.reasons.set(reason, (rejectedCount.reasons.get(reason) || 0) + 1);
+
+          console.warn(`❌ REJECTED: "${recommendation.title}" - ${reason}`);
+
+          // Create training case for false positives
+          if (validation.recommendation === 'reject') {
+            await trainingSystem.createTrainingCase(
+              recommendation,
+              validation,
+              `False positive detected: ${validation.conflictingEvidence.join('; ')}`
+            );
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️  Could not validate recommendation "${recommendation.title}":`, error);
+        // If validation fails, include the recommendation but mark it as unvalidated
+        validatedRecommendations.push({
+          ...recommendation,
+          metadata: {
+            ...recommendation.metadata,
+            validationStatus: 'unvalidated',
+            validationError: String(error)
+          }
+        });
+      }
+    }
+
+    console.log(`✅ Validation complete: ${validatedRecommendations.length} approved, ${rejectedCount.total} rejected`);
+
+    if (rejectedCount.total > 0) {
+      console.log(`📊 Rejection reasons:`);
+      rejectedCount.reasons.forEach((count, reason) => {
+        console.log(`   - ${reason}: ${count}`);
+      });
+    }
+
+    return validatedRecommendations;
+  }
+
+  /**
+   * Creates a training case from the error handling false positive example
+   */
+  async createErrorHandlingTrainingCase(): Promise<void> {
+    console.log('📚 Creating training case from error handling false positive...');
+
+    try {
+      const trainingCase = await trainingSystem.createErrorHandlingTrainingCase();
+      console.log(`✅ Training case created: ${trainingCase.id}`);
+      console.log(`📋 Lessons learned: ${trainingCase.lessons.length} key insights`);
+      console.log(`🛡️  Prevention rules: ${trainingCase.preventionRules.length} new rules`);
+    } catch (error) {
+      console.error('❌ Failed to create training case:', error);
+    }
   }
 }
