@@ -194,16 +194,14 @@ class MemoryAPIService {
 
   // Refresh a specific repository with live GitHub scanning
   async refreshRepository(repositoryId) {
-    console.log(`🔄 Refreshing repository via live GitHub scan: ${repositoryId}`);
     return this.request(`/api/repositories/${encodeURIComponent(repositoryId)}/refresh`, {
       method: 'POST'
     });
   }
 
-  // Get ALL recommendations from ALL repositories 
+  // Get ALL recommendations from ALL repositories
   async getAllRepositoryRecommendations(options = {}) {
     try {
-      console.log('📊 Getting all repository recommendations with options:', options);
 
       // Use the existing /api/improvements endpoint which already has all the data
       const params = new URLSearchParams({
@@ -214,7 +212,6 @@ class MemoryAPIService {
       });
 
       const response = await this.request(`/api/improvements?${params}`);
-      console.log(`🎯 Total recommendations found: ${response.total}`);
 
       // Transform the response to match the expected format
       const allRecommendations = response.improvements || [];
@@ -269,21 +266,19 @@ class MemoryAPIService {
         }
       };
     } catch (error) {
-      console.error('❌ Failed to get all repository recommendations:', error);
+      console.error('Failed to get all repository recommendations:', error);
       throw error;
     }
   }
 
   // Repository rescan methods
   async rescanAllRepositories() {
-    console.log('🔄 Triggering comprehensive repository rescan with local detection...');
     return this.request('/api/repositories/rescan-all', {
       method: 'POST'
     });
   }
 
   async scanAllRepositories() {
-    console.log('🔄 Triggering repository scan-all...');
     return this.request('/api/repositories/scan-all', {
       method: 'POST'
     });
@@ -291,7 +286,6 @@ class MemoryAPIService {
 
   // Synchronize repository pattern counts with improvements data
   async syncRepositoryPatternCounts() {
-    console.log('🔄 Synchronizing repository pattern counts...');
     return this.request('/api/repositories/sync-pattern-counts', {
       method: 'POST'
     });

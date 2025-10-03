@@ -1179,15 +1179,11 @@ router.get('/bugs-prevented', (req: Request, res: Response) => {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { category, impact, sortBy, limit = 50 } = req.query;
-    
-    console.log('🔍 Fetching improvements for all repositories...');
-    
+
     // Get all repositories
     const repositories = await repositoryAnalyzer.getAllRepositories();
-    console.log(`📊 Found ${repositories.length} repositories to process`);
-    
+
     if (repositories.length === 0) {
-      console.log('⚠️ No repositories found, falling back to mock data');
       // Fallback to mock data if no repositories exist
       let results = [...improvements];
       
@@ -1205,6 +1201,7 @@ router.get('/', async (req: Request, res: Response) => {
       return res.json({
         improvements: results,
         total: results.length,
+        repositoryCount: 0, // No repositories when using mock data
         categories: ['performance', 'security', 'testing', 'architecture', 'maintainability'],
         impacts: ['critical', 'high', 'medium', 'low'],
         analytics: {
@@ -1215,29 +1212,38 @@ router.get('/', async (req: Request, res: Response) => {
         }
       });
     }
-    
+
     // Collect improvements from all repositories
     let allImprovements: any[] = [];
-    
+
     for (const repo of repositories) {
       try {
-        console.log(`🎯 Processing ${repo.fullName} (${repo.techStack})...`);
-        
         // Get existing recommendations for this repository
         const recommendations = await recommendationEngine.getRecommendationsForRepository(repo.id);
-        
+
         // Convert recommendations to improvement format for API compatibility
         const repoImprovements = recommendations.map(rec => ({
           id: rec.id,
           title: rec.title,
           description: rec.description,
-          category: rec.recommendationType === 'best_practices' ? 'maintainability' : 
-                    rec.recommendationType === 'type_safety' ? 'security' :
-                    rec.recommendationType,
-          impact: `${rec.priority.charAt(0).toUpperCase()}${rec.priority.slice(1)} impact improvement`,
+          // Map recommendation types to standard categories
+          category: (() => {
+            switch(rec.recommendationType) {
+              case 'best_practices': return 'maintainability';
+              case 'type_safety': return 'security';
+              case 'migration': return 'architecture';
+              case 'pattern_usage': return 'architecture';
+              case 'performance': return 'performance';
+              case 'security': return 'security';
+              case 'architecture': return 'architecture';
+              case 'testing': return 'testing';
+              default: return 'maintainability';
+            }
+          })(),
+          impact: rec.priority,  // Use priority directly (low, medium, high, critical)
           repository: repo.fullName,
           platform: repo.framework?.toLowerCase().includes('react') ? 'frontend' : 'backend',
-          team: repo.techStack?.includes('devops') ? 'DevOps Team' : 
+          team: repo.techStack?.includes('devops') ? 'DevOps Team' :
                 repo.techStack?.includes('react') ? 'Frontend Team' : 'Backend Team',
           metrics: {
             timeToImplement: rec.estimatedEffort,
@@ -1252,41 +1258,48 @@ router.get('/', async (req: Request, res: Response) => {
           afterCode: rec.codeExamples[0]?.after || '',
           tags: rec.tags,
           status: rec.status === 'active' ? 'pending' : rec.status,
-          difficulty: rec.priority === 'high' ? 'hard' : 
+          difficulty: rec.priority === 'high' ? 'hard' :
                      rec.priority === 'low' ? 'easy' : 'medium'
         }));
-        
+
         allImprovements.push(...repoImprovements);
-        console.log(`✅ Found ${repoImprovements.length} improvements for ${repo.fullName}`);
         
       } catch (repoError) {
-        console.error(`❌ Error processing repository ${repo.fullName}:`, repoError);
+        console.error(`Error processing repository ${repo.fullName}:`, repoError);
         // Continue processing other repositories
       }
     }
-    
-    console.log(`📈 Total improvements collected: ${allImprovements.length} from ${repositories.length} repositories`);
-    
+
     // If no improvements found from repositories, generate new ones
     if (allImprovements.length === 0) {
-      console.log('🔄 No existing improvements found, generating new recommendations...');
       
       // Generate recommendations for all repositories
-      for (const repo of repositories.slice(0, 5)) { // Limit to first 5 repos for performance
+      for (const repo of repositories) { // Generate for all repositories, not just first 5
         try {
           const newRecommendations = await recommendationEngine.generateRecommendations(repo.id);
-          
+
           const repoImprovements = newRecommendations.map(rec => ({
             id: rec.id,
             title: rec.title,
             description: rec.description,
-            category: rec.recommendationType === 'best_practices' ? 'maintainability' : 
-                      rec.recommendationType === 'type_safety' ? 'security' :
-                      rec.recommendationType,
-            impact: `${rec.priority.charAt(0).toUpperCase()}${rec.priority.slice(1)} impact improvement`,
+            // Map recommendation types to standard categories
+            category: (() => {
+              switch(rec.recommendationType) {
+                case 'best_practices': return 'maintainability';
+                case 'type_safety': return 'security';
+                case 'migration': return 'architecture';
+                case 'pattern_usage': return 'architecture';
+                case 'performance': return 'performance';
+                case 'security': return 'security';
+                case 'architecture': return 'architecture';
+                case 'testing': return 'testing';
+                default: return 'maintainability';
+              }
+            })(),
+            impact: rec.priority,  // Use priority directly (low, medium, high, critical)
             repository: repo.fullName,
             platform: repo.framework?.toLowerCase().includes('react') ? 'frontend' : 'backend',
-            team: repo.techStack?.includes('devops') ? 'DevOps Team' : 
+            team: repo.techStack?.includes('devops') ? 'DevOps Team' :
                   repo.techStack?.includes('react') ? 'Frontend Team' : 'Backend Team',
             metrics: {
               timeToImplement: rec.estimatedEffort,
@@ -1301,30 +1314,27 @@ router.get('/', async (req: Request, res: Response) => {
             afterCode: rec.codeExamples[0]?.after || '',
             tags: rec.tags,
             status: 'pending',
-            difficulty: rec.priority === 'high' ? 'hard' : 
+            difficulty: rec.priority === 'high' ? 'hard' :
                        rec.priority === 'low' ? 'easy' : 'medium'
           }));
-          
+
           allImprovements.push(...repoImprovements);
-          console.log(`✅ Generated ${repoImprovements.length} new improvements for ${repo.fullName}`);
           
         } catch (genError) {
-          console.error(`❌ Error generating recommendations for ${repo.fullName}:`, genError);
+          console.error(`Error generating recommendations for ${repo.fullName}:`, genError);
         }
       }
     }
-    
+
     // Apply filters
     let results = [...allImprovements];
-    
+
     if (category && category !== 'all') {
       results = results.filter(i => i.category === category);
-      console.log(`🔍 Filtered by category '${category}': ${results.length} improvements`);
     }
-    
+
     if (impact && impact !== 'all') {
-      results = results.filter(i => i.impact.toLowerCase().includes(impact as string));
-      console.log(`🔍 Filtered by impact '${impact}': ${results.length} improvements`);
+      results = results.filter(i => i.impact.toLowerCase() === impact);
     }
     
     // Sort results
@@ -1350,14 +1360,12 @@ router.get('/', async (req: Request, res: Response) => {
     
     // Calculate analytics from the results
     const analytics = generateImprovementAnalytics(results);
-    
-    console.log(`📊 Final results: ${results.length} improvements (limited from ${allImprovements.length})`);
-    console.log(`📈 Analytics: ${analytics.totalBugsPrevented} bugs prevented, ${analytics.completedImprovements} completed`);
-    
+
     res.json({
       improvements: results,
       total: allImprovements.length, // Total before pagination
       repositoriesAnalyzed: repositories.length,
+      repositoryCount: repositories.length, // Total repositories in database
       categories: ['performance', 'security', 'testing', 'architecture', 'maintainability'],
       impacts: ['critical', 'high', 'medium', 'low'],
       analytics: {
@@ -1369,10 +1377,9 @@ router.get('/', async (req: Request, res: Response) => {
     });
     
   } catch (error) {
-    console.error('❌ Error fetching improvements from all repositories:', error);
-    
+    console.error('Error fetching improvements from all repositories:', error);
+
     // Fallback to mock data on error
-    console.log('🔄 Falling back to mock data due to error');
     let results = [...improvements];
     
     const { category, impact, sortBy, limit = 50 } = req.query;
@@ -1391,6 +1398,7 @@ router.get('/', async (req: Request, res: Response) => {
     res.json({
       improvements: results,
       total: results.length,
+      repositoryCount: 0, // No repositories in error state
       categories: ['performance', 'security', 'testing', 'architecture', 'maintainability'],
       impacts: ['critical', 'high', 'medium', 'low'],
       analytics: {

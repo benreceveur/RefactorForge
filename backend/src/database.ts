@@ -1,14 +1,37 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import { initOptimizedDb } from './performance/optimized-database-helpers';
+import { optimizeDatabase } from './migrations/index-optimizer';
 import { logger } from './utils/logger';
 
 const dbPath = path.join(__dirname, '..', 'refactorforge.db');
 const db = new sqlite3.Database(dbPath);
 
-// Initialize optimized database helpers
-initOptimizedDb(dbPath).then(() => {
+// Initialize optimized database helpers and performance indexes
+initOptimizedDb(dbPath).then(async () => {
   logger.info('Optimized database helpers initialized', { dbPath });
+
+  // Auto-optimize database with critical and high priority indexes
+  if (process.env.AUTO_OPTIMIZE_DB !== 'false') {
+    try {
+      logger.info('Starting automatic database optimization...');
+      const report = await optimizeDatabase(['critical', 'high']);
+
+      if (report.newIndexes > 0) {
+        logger.info('Database optimization completed', {
+          newIndexes: report.newIndexes,
+          skippedIndexes: report.skippedIndexes,
+          executionTime: report.totalExecutionTime
+        });
+      } else {
+        logger.debug('Database optimization skipped - all indexes already exist');
+      }
+    } catch (error) {
+      logger.warn('Database optimization failed - continuing with existing indexes', {
+        error: String(error)
+      });
+    }
+  }
 }).catch((error) => {
   logger.error('Failed to initialize optimized database helpers', { error: String(error) });
 });

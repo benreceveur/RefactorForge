@@ -41,17 +41,12 @@ const CodeImprovements = () => {
   // Add error boundary to catch potential React errors
   useEffect(() => {
     const handleError = (error) => {
-      console.error('🚨 CodeImprovements Component Error:', error);
+      console.error('CodeImprovements Component Error:', error);
     };
-    
+
     window.addEventListener('error', handleError);
     return () => window.removeEventListener('error', handleError);
   }, []);
-
-  // Debug expandedCard state changes
-  useEffect(() => {
-    console.log('🔄 Expanded card state changed:', expandedCard);
-  }, [expandedCard]);
 
   // Handle Chrome extension runtime errors that could interfere with button clicks
   useEffect(() => {
@@ -90,6 +85,7 @@ const CodeImprovements = () => {
   };
   const [improvements, setImprovements] = useState([]);
   const [allImprovements, setAllImprovements] = useState([]); // Store full unfiltered list for counts
+  const [repositoryCount, setRepositoryCount] = useState(0); // Store total repository count from API
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -214,46 +210,22 @@ ${improvement.metrics ? `
       setLoading(true);
     }
     setError(null);
-    
+
     try {
-      console.log('🔄 Fetching multi-repository recommendations...');
       // Use the new multi-repository API method
       const data = await apiService.getAllRepositoryRecommendations({
         impact: selectedImpact === 'all' ? undefined : selectedImpact,
         sortBy: sortBy
         // Don't send category filter to get all improvements
       });
-      console.log('📊 Multi-repository data received:', data);
-      
+
       const allImps = data.improvements || [];
       setAllImprovements(allImps); // Store full list for counts
       setImprovements(allImps); // Store same list for filtering
-      
-      // Debug: Log sample improvement to understand data structure
-      if (allImps.length > 0) {
-        console.log('🔍 Sample improvement data structure:', allImps[0]);
-        console.log('🔍 Available category fields:', {
-          recommendationType: allImps[0].recommendationType,
-          category: allImps[0].category,
-          type: allImps[0].type
-        });
-        
-        // Debug: Log all unique categories found in data
-        const uniqueCategories = [...new Set(allImps.map(imp => 
-          normalizeCategory(imp)
-        ))].filter(Boolean);
-        console.log('🔍 All unique categories found in data:', uniqueCategories);
-        
-        // Debug: Log category distribution
-        uniqueCategories.forEach(cat => {
-          const count = allImps.filter(imp => 
-            normalizeCategory(imp) === cat
-          ).length;
-          console.log(`🔍 Category "${cat}": ${count} improvements`);
-        });
-      }
-      
-      console.log(`✅ Loaded ${allImps.length} recommendations from ${data.repositoryCount || 0} repositories`);
+
+      // Store repository count from API response
+      const repoCount = data.repositoryCount || data.repositoriesAnalyzed || 0;
+      setRepositoryCount(repoCount);
       
       // Track improvements view event for timeline
       await apiService.trackEvent({
@@ -268,7 +240,7 @@ ${improvement.metrics ? `
             impact: selectedImpact,
             sortBy: sortBy
           },
-          repositories: data.repositoryCount || 0,
+          repositories: data.repositoryCount || data.repositoriesAnalyzed || 0,
           isRefresh: isRefresh
         },
         metrics: {
@@ -288,7 +260,8 @@ ${improvement.metrics ? `
       setError(errorMsg);
       setImprovements([]);
       setAllImprovements([]);
-      
+      setRepositoryCount(0);
+
       if (isRefresh) {
         setRefreshMessage('Failed to refresh recommendations. Please try again.');
         setTimeout(() => setRefreshMessage(''), 3000);
@@ -308,36 +281,28 @@ ${improvement.metrics ? `
   const handleRefresh = async () => {
     setRefreshing(true);
     setRefreshMessage('');
-    
+
     try {
-      console.log('🔄 Starting live GitHub refresh for all repositories...');
-      
       // First get all repositories
       const repositories = await apiService.getAllRepositories();
-      console.log(`📊 Found ${repositories.length} repositories to refresh`);
-      
+
       let totalRefreshed = 0;
       let totalFixed = 0;
       const refreshResults = [];
-      
+
       // Refresh each repository with live GitHub scanning
       for (const repo of repositories) {
         try {
-          console.log(`🔄 Refreshing ${repo.fullName} with live GitHub scan...`);
           setRefreshMessage(`Scanning ${repo.name}... (${totalRefreshed + 1}/${repositories.length})`);
-          
+
           const refreshResult = await apiService.refreshRepository(repo.fullName);
           refreshResults.push(refreshResult);
-          
+
           if (refreshResult.success) {
             totalRefreshed++;
             totalFixed += refreshResult.fixedIssues?.total || 0;
-            console.log(`✅ Refreshed ${repo.fullName}: ${refreshResult.fixedIssues?.total || 0} issues fixed`);
-          } else {
-            console.log(`⚠️  Refresh failed for ${repo.fullName}: ${refreshResult.scanResults?.errorMessage || 'Unknown error'}`);
           }
         } catch (error) {
-          console.error(`❌ Failed to refresh repository ${repo.fullName}:`, error);
           refreshResults.push({
             success: false,
             repositoryName: repo.fullName,
@@ -612,7 +577,7 @@ ${improvement.metrics ? `
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-memory-50 border border-memory-200 rounded-lg">
               <Package className="w-4 h-4 text-memory-600" />
               <span className="text-sm text-memory-700">
-                Analyzing {Array.from(new Set((allImprovements.length > 0 ? allImprovements : defaultImprovements).map(imp => imp.repository))).length} repositories
+                Analyzing {repositoryCount || Array.from(new Set((allImprovements.length > 0 ? allImprovements : defaultImprovements).map(imp => imp.repository))).length} repositories
               </span>
             </div>
           </div>
@@ -625,19 +590,7 @@ ${improvement.metrics ? `
           const Icon = category.icon;
           // Use same data source as display - ensure we use the right data
           const dataToCount = displayImprovements;
-          
-          // Debug: Log data source and first few items for troubleshooting
-          if (category.id === 'performance' && dataToCount.length > 0) {
-            console.log(`🔍 Category counting debug for ${category.id}:`, {
-              dataToCountLength: dataToCount.length,
-              sampleItems: dataToCount.slice(0, 3).map(imp => ({
-                id: imp.id,
-                category: imp.category,
-                normalized: normalizeCategory(imp)
-              }))
-            });
-          }
-          
+
           const count = dataToCount.filter(imp => {
             if (category.id === 'all') return true;
             // Use same normalization as filtering logic
@@ -728,11 +681,12 @@ ${improvement.metrics ? `
             <button onClick={fetchImprovements} className="btn-primary">
               Retry
             </button>
-            <button 
+            <button
               onClick={() => {
                 setError(null);
                 setImprovements(defaultImprovements);
                 setAllImprovements(defaultImprovements);
+                setRepositoryCount(0); // Reset to 0 for demo data
               }}
               className="btn-secondary"
             >
@@ -876,18 +830,7 @@ ${improvement.metrics ? `
             const Icon = getCategoryIcon(normalizeCategory(improvement));
             const uniqueKey = generateUniqueKey(improvement, index);
             const isExpanded = expandedCard === uniqueKey;
-            
-            // Debug logging for key generation and state
-            if (index === 0) { // Only log for first item to avoid spam
-              console.log('🔍 Card state debug:', {
-                index,
-                uniqueKey,
-                expandedCard,
-                isExpanded,
-                title: improvement.title
-              });
-            }
-            
+
             return (
               <motion.div
                 key={generateUniqueKey(improvement, index)}
@@ -1024,11 +967,6 @@ ${improvement.metrics ? `
                     <h4 className="text-lg font-medium text-gray-900">Code Comparison</h4>
                     <button
                       onClick={() => {
-                        console.log('🔘 View Code button clicked', { 
-                          uniqueKey, 
-                          isExpanded, 
-                          currentExpandedCard: expandedCard 
-                        });
                         setExpandedCard(isExpanded ? null : uniqueKey);
                       }}
                       className="btn-secondary text-sm"
@@ -1244,11 +1182,6 @@ ${improvement.metrics ? `
                     </div>
                     <button
                       onClick={() => {
-                        console.log('🔘 View Details button clicked', { 
-                          uniqueKey, 
-                          isExpanded, 
-                          currentExpandedCard: expandedCard 
-                        });
                         setExpandedCard(isExpanded ? null : uniqueKey);
                       }}
                       className="btn-primary text-sm flex items-center gap-1"

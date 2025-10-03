@@ -227,19 +227,19 @@ const TimelineInsights = ({ className = '' }) => {
       {/* Activity Trend */}
       <div className="mb-6">
         <h4 className="text-sm font-medium text-gray-700 mb-3">7-Day Activity Trend</h4>
-        <div className="flex items-end gap-2 h-16">
+        <div className="flex items-end gap-2 h-20">
           {insights.last7Days.map((day, index) => {
-            const maxCount = Math.max(...insights.last7Days.map(d => d.count));
-            const height = maxCount > 0 ? Math.max((day.count / maxCount) * 100, 5) : 5;
-            
+            const maxCount = Math.max(...insights.last7Days.map(d => d.count), 1);
+            const height = day.count > 0 ? Math.max((day.count / maxCount) * 100, 10) : 10;
+
             return (
-              <div key={index} className="flex-1 flex flex-col items-center">
+              <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
                 <motion.div
                   initial={{ height: 0 }}
                   animate={{ height: `${height}%` }}
                   transition={{ delay: index * 0.1, duration: 0.5 }}
-                  className="w-full bg-memory-200 rounded-t"
-                  style={{ minHeight: '4px' }}
+                  className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t hover:from-blue-600 hover:to-blue-500 transition-colors"
+                  style={{ minHeight: '8px' }}
                 />
                 <div className="text-xs text-gray-500 mt-1">{day.date}</div>
                 <div className="text-xs font-medium text-gray-700">{day.count}</div>

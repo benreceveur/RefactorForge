@@ -25,22 +25,32 @@ router.get('/', asyncHandler(async (req: Request, res: Response): Promise<void> 
       techStackCounts[stack] = (techStackCounts[stack] || 0) + (repo.patternsCount || 0);
     });
     
-    const colors = {
+    const colors: Record<string, string> = {
+      'Backend': '#0ea5e9',
+      'Frontend': '#10b981',
+      'Full Stack': '#f59e0b',
+      'Infrastructure': '#ef4444',
+      'General-typescript': '#8b5cf6',
+      'DevOps': '#06b6d4',
       'backend': '#0ea5e9',
-      'frontend': '#10b981', 
+      'frontend': '#10b981',
       'devops': '#f59e0b',
       'middleware': '#8b5cf6',
       'azure-functions': '#ef4444',
       'migration': '#06b6d4',
       'Other': '#64748b'
     };
-    
-    const categoryDistribution = Object.entries(techStackCounts).map(([name, count]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      count,
-      value: count,
-      color: colors[name as keyof typeof colors] || '#64748b'
-    }));
+
+    const categoryDistribution = Object.entries(techStackCounts).map(([name, count], index) => {
+      const colorPalette = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+      const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+      return {
+        name: displayName,
+        count,
+        value: count,
+        color: colors[displayName] || colors[name] || colorPalette[index % colorPalette.length]
+      };
+    });
     
     // Generate usage trends based on repositories (simulated over last 7 days)
     const usageTrends = [];

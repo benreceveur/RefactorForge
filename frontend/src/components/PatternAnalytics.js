@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell
+  PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import apiService from '../services/api';
@@ -212,23 +212,52 @@ const PatternAnalytics = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Patterns by Category
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={450}>
             <PieChart>
               <Pie
                 data={analytics?.categoryDistribution || []}
                 cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, count }) => `${name}: ${count}`}
+                cy="40%"
+                innerRadius={40}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="count"
+                nameKey="name"
               >
-                {(analytics?.categoryDistribution || []).map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
+                {(analytics?.categoryDistribution || []).map((entry, index) => {
+                  const colors = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+                  return <Cell key={`cell-${index}`} fill={entry.color || colors[index % colors.length]} />;
+                })}
               </Pie>
-              <Tooltip />
+              <Tooltip
+                formatter={(value, name) => [`${value} patterns`, name]}
+              />
+              <Legend
+                verticalAlign="bottom"
+                height={60}
+                formatter={(value, entry) => `${value}: ${entry.payload.count || 0}`}
+                iconType="square"
+                wrapperStyle={{ paddingTop: '10px' }}
+                content={(props) => {
+                  const { payload } = props;
+                  const colors = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+                  return (
+                    <div className="flex flex-wrap justify-center gap-2 px-2" style={{ marginTop: '10px' }}>
+                      {payload.map((entry, index) => (
+                        <span key={`legend-${index}`} className="flex items-center gap-1 text-xs">
+                          <span
+                            className="w-3 h-3 rounded-sm flex-shrink-0"
+                            style={{ backgroundColor: entry.payload.color || colors[index % colors.length] }}
+                          />
+                          <span className="text-gray-600">
+                            {entry.value}: {entry.payload.count || 0}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -242,21 +271,26 @@ const PatternAnalytics = () => {
             <LineChart data={analytics?.usageTrends || []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line 
-                type="monotone" 
-                dataKey="patterns" 
-                stroke="#0ea5e9" 
+              <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
+              <Tooltip formatter={(value, name) => [value, name]} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="patterns"
+                stroke="#0ea5e9"
                 strokeWidth={2}
                 name="New Patterns"
+                dot={{ fill: '#0ea5e9', r: 4 }}
+                activeDot={{ r: 6 }}
               />
-              <Line 
-                type="monotone" 
-                dataKey="searches" 
-                stroke="#10b981" 
+              <Line
+                type="monotone"
+                dataKey="searches"
+                stroke="#10b981"
                 strokeWidth={2}
                 name="Searches"
+                dot={{ fill: '#10b981', r: 4 }}
+                activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>

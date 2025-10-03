@@ -37,7 +37,7 @@ export interface Recommendation {
   metrics?: RecommendationMetrics;
 }
 
-export type RecommendationType = 
+export type RecommendationType =
   | 'security'
   | 'performance'
   | 'architecture'
@@ -45,7 +45,9 @@ export type RecommendationType =
   | 'testing'
   | 'documentation'
   | 'refactoring'
-  | 'type_safety';
+  | 'type_safety'
+  | 'migration'
+  | 'pattern_usage';
 
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
 
